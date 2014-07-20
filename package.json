@@ -1,0 +1,32 @@
+{
+  "name": "modubot.js-cli",
+  "version": "0.0.0",
+  "description": "A CLI program for Modubot.js",
+  "bin": {
+    "modubot": "bin/modubot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Modubot/modubot.js-cli"
+  },
+  "keywords": [
+    "cli",
+    "irc",
+    "bot",
+    "modubot",
+    "modular",
+    "plugins"
+  ],
+  "author": "Kamal Nasser <hello@kamal.io>",
+  "license": "BSD-3",
+  "bugs": {
+    "url": "https://github.com/Modubot/modubot.js-cli/issues"
+  },
+  "homepage": "https://modubot.net",
+  "preferGlobal": true,
+  "dependencies": {
+    "colors": "^0.6.2",
+    "commander": "^2.3.0",
+    "prompt": "^0.2.13"
+  }
+}

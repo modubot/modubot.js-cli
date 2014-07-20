@@ -1,0 +1,185 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+var package = require('../package.json');
+var fs = require('fs');
+var spawn = require('child_process').spawn;
+var path = require('path');
+var colors = require('colors');
+var pompt = require('prompt');
+
+program
+    .version(package.version)
+    .option('-v, --verbose', 'Enable verbose output')
+    .usage('[command]');
+
+program.on('--help', function() {
+    var output = [
+        "  Commands:",
+        "",
+        "   new: Create a new Modubot instance in the directory [name]",
+        "   $ modubot new [name]",
+        "",
+        "   plugin: Create a new Modubot plugin in the directory [namespace]/[name]",
+        "   $ modubot plugin [namespace]/[name]",
+        ""
+    ];
+
+    console.log(output.join("\n"));
+});
+
+program.parse(process.argv);
+
+if (program.args.length < 2) {
+    program.outputHelp();
+    process.exit(1);
+}
+
+var command = program.args[0];
+
+if (command == 'new') {
+    var name = program.args[1];
+    var args = [];
+
+    if (fs.existsSync(name)) {
+        console.error(name + ' already exists.'.inverse.bold.red);
+        process.exit(1);
+    }
+
+    // Callback hell, I know.
+    console.log('Downloading modubot'.inverse.bold.blue);
+    args = ['clone', 'https://github.com/modubot/modubot.js.git', name];
+    if (program.verbose) args.push('--verbose');
+    spawn('git', args, {
+        stdio: 'inherit'
+    }).on('error', console.error).on('close', function(code) {
+        if (code != 0) {
+            console.error('Looks like an error occurred while cloning the git repository.'.inverse.bold.red);
+            process.exit(1);
+        }
+
+        console.log('Installing Grunt'.inverse.bold.blue);
+        args = ['install', '--global', 'grunt-cli'];
+        if (program.verbose) args.push('--verbose');
+        spawn('npm', args, {
+            stdio: 'inherit'
+        }).on('error', console.error).on('close', function(code) {
+            if (code != 0) {
+                console.error('Looks like an error occurred while installing Grunt.'.inverse.bold.red);
+                process.exit(1);
+            }
+
+            var cwd = path.join(process.cwd(), name);
+
+            console.log('Installing modubot\'s dependencies'.inverse.bold.blue);
+            args = ['install'];
+            if (program.verbose) args.push('--verbose');
+            spawn('npm', args, {
+                stdio: 'inherit',
+                cwd: cwd
+            }).on('error', console.error).on('close', function(code) {
+                if (code != 0) {
+                    console.error('Looks like an error occurred while installing modubot\'s dependencies.'.inverse.bold.red);
+                    process.exit(1);
+                }
+
+                console.log('Compiling modubot'.inverse.bold.blue);
+
+                spawn('grunt', [], {
+                    stdio: 'inherit',
+                    cwd: cwd
+                }).on('error', console.error).on('close', function(code) {
+                    if (code != 0) {
+                        console.error('Looks like an error occurred while running Grunt.'.inverse.bold.red);
+                        process.exit(1);
+                    }
+
+                    console.log('Done!'.inverse.bold.green);
+                });
+            });
+        });
+    });
+} else if (command == 'plugin') {
+    var path = program.args[1].split('/');
+    if (path.length < 2) {
+        program.outputHelp();
+        process.exit(1);
+    }
+
+    var namespace = path[0];
+    var name = path[1];
+    path = path.join('/');
+
+    if (fs.existsSync(path.join(process.cwd(), namespace, name))) {
+        console.error((path + ' already exists.').inverse.bold.red);
+        process.exit(1);
+    }
+
+    var types = {
+        javascript: '.js',
+        typescript: '.ts',
+        coffeescript: '.coffee'
+    }
+
+    promptOptions = {
+        properties: {
+            namespace: {
+                pattern: /^[a-zA-Z0-9]+$/,
+                message: 'The namespace must be only letters and/or numbers'.inverse.bold.red,
+                required: true
+            },
+            name: {
+                pattern: /^[a-zA-Z0-9]+$/,
+                message: 'The name must be only letters and/or numbers'.inverse.bold.red,
+                required: true
+            },
+            description: {
+                message: 'The description is required'.inverse.bold.red,
+                required: true
+            },
+            version: {
+                pattern: /^[0-9]\.[0-9]\.[0-9]$/,
+                message: 'The namespace must be of the format: [0-9].[0-9].[0-9]'.inverse.bold.red,
+                required: true
+            },
+            author: {
+                message: 'The author is required'.inverse.bold.red,
+                required: true
+            },
+            type: {
+                pattern: /^javascript|typescript|coffeescript$/,
+                message: 'The type must be one of the following: javascript, typescript, coffeescript'.inverse.bold.red,
+                required: true
+            }
+        }
+    };
+
+    prompt.get(promptOptions, function(err, input) {
+        if (err) {
+            console.error(err);
+            process.exit(1);
+        }
+
+        var pluginJson = {
+            pluginDependencies: []
+        }
+
+        for (var attr in promptOptions.properties) {
+            pluginJson[attr] = input[attr];
+        }
+
+        pluginJson = JSON.stringify(pluginJson);
+        var absolutePath = path.join(process.cwd(), namespace, name);
+
+        fs.mkdirSync(path.join(process.cwd(), namespace)) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+        fs.mkdirSync(absolutePath) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+
+        fs.writeFileSync(path.join(absolutePath, 'package.json'), pluginJson) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+        fs.writeFileSync(path.join(absolutePath, (input.name + types[input.type])), fs.readFileSync(path.join(__dirname, 'plugin', ('plugin' + types[input.type])))) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+
+        console.log(('Created plugin ' + path).inverse.bold.green);
+    });
+} else {
+    program.outputHelp();
+    process.exit(1);
+}
