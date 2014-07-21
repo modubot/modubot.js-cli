@@ -6,7 +6,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var path = require('path');
 var colors = require('colors');
-var pompt = require('prompt');
+var prompt = require('prompt');
 
 program
     .version(package.version)
@@ -100,18 +100,18 @@ if (command == 'new') {
         });
     });
 } else if (command == 'plugin') {
-    var path = program.args[1].split('/');
-    if (path.length < 2) {
+    var pPath = program.args[1].split('/');
+    if (pPath.length < 2) {
         program.outputHelp();
         process.exit(1);
     }
 
-    var namespace = path[0];
-    var name = path[1];
-    path = path.join('/');
+    var namespace = pPath[0];
+    var name = pPath[1];
+    pPath = pPath.join('/');
 
     if (fs.existsSync(path.join(process.cwd(), namespace, name))) {
-        console.error((path + ' already exists.').inverse.bold.red);
+        console.error((pPath + ' already exists.').inverse.bold.red);
         process.exit(1);
     }
 
@@ -123,17 +123,13 @@ if (command == 'new') {
 
     promptOptions = {
         properties: {
-            namespace: {
-                pattern: /^[a-zA-Z0-9]+$/,
-                message: 'The namespace must be only letters and/or numbers'.inverse.bold.red,
-                required: true
-            },
-            name: {
-                pattern: /^[a-zA-Z0-9]+$/,
-                message: 'The name must be only letters and/or numbers'.inverse.bold.red,
+            title: {
+                pattern: /^.+$/,
+                message: 'The title is required'.inverse.bold.red,
                 required: true
             },
             description: {
+                pattern: /^.+$/,
                 message: 'The description is required'.inverse.bold.red,
                 required: true
             },
@@ -143,6 +139,7 @@ if (command == 'new') {
                 required: true
             },
             author: {
+                pattern: /^.+$/,
                 message: 'The author is required'.inverse.bold.red,
                 required: true
             },
@@ -161,23 +158,24 @@ if (command == 'new') {
         }
 
         var pluginJson = {
+            name: name,
+            title: input.title,
+            description: input.description,
+            version: input.version,
+            author: {name: input.author},
             pluginDependencies: []
-        }
+        };
 
-        for (var attr in promptOptions.properties) {
-            pluginJson[attr] = input[attr];
-        }
-
-        pluginJson = JSON.stringify(pluginJson);
+        pluginJson = JSON.stringify(pluginJson, null, 4);
         var absolutePath = path.join(process.cwd(), namespace, name);
 
-        fs.mkdirSync(path.join(process.cwd(), namespace)) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
-        fs.mkdirSync(absolutePath) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+        fs.existsSync(path.join(process.cwd(), namespace)) || fs.mkdirSync(path.join(process.cwd(), namespace));
+        fs.mkdirSync(absolutePath);
 
-        fs.writeFileSync(path.join(absolutePath, 'package.json'), pluginJson) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
-        fs.writeFileSync(path.join(absolutePath, (input.name + types[input.type])), fs.readFileSync(path.join(__dirname, 'plugin', ('plugin' + types[input.type])))) || (console.error('An error occurred.'.inverse.bold.red) && process.exit(1));
+        fs.writeFileSync(path.join(absolutePath, 'package.json'), pluginJson);
+        fs.writeFileSync(path.join(absolutePath, (name + types[input.type])), fs.readFileSync(path.join(path.resolve(__dirname, '../plugin'), ('plugin' + types[input.type]))));
 
-        console.log(('Created plugin ' + path).inverse.bold.green);
+        console.log(('Created plugin ' + namespace + '/' + name).inverse.bold.green);
     });
 } else {
     program.outputHelp();
