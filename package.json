@@ -1,6 +1,6 @@
 {
   "name": "modubot.js-cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A CLI program for Modubot.js",
   "bin": {
     "modubot": "bin/modubot"
